@@ -10,8 +10,8 @@
 <script>
 function executeQuery(){
 	var xhr = new XMLHttpRequest();
-	var url = "http://3.17.96.171";
-	//var url = "http://localhost";
+	//var url = "http://10.145.179.111"; //localhost
+	var url = "http://3.16.37.233";
 	xhr.open("POST", url, true);
 	xhr.setRequestHeader("Content-Type", "application/json");
 	xhr.onreadystatechange = function () {
@@ -21,6 +21,7 @@ function executeQuery(){
 	    }
 	};
 	var data = document.getElementById("sqlquery").value;
+	console.log("API Called : ",data);
 	xhr.send(data);
 }
 </script> 
