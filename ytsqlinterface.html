@@ -1,7 +1,13 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+	<style type="text/css">
+		input{
+			width: 200vw;
+		}
+	</style>
+</head>
 <body>
-
 <h2>Sample to initiate http post for yt sql interface</h2>
 <p id="sq"><label for="deviceName">SQL Query : </label><input id="sqlquery" type="text" name="sqlQuery"></p>
 <button type="button" onclick="executeQuery()">Execute</button></p>
@@ -10,8 +16,10 @@
 <script>
 function executeQuery(){
 	var xhr = new XMLHttpRequest();
-	//var url = "http://10.145.179.111"; //localhost
-	var url = "http://3.16.37.233";
+	// var url = "http://3.16.37.233"; // server
+	var url = "http://10.109.25.35"; //LAN
+	// var url = "http://10.145.179.111"; // Wi-Fi
+	// var url = "http://192.168.42.206";//Mobile
 	xhr.open("POST", url, true);
 	xhr.setRequestHeader("Content-Type", "application/json");
 	xhr.onreadystatechange = function () {
