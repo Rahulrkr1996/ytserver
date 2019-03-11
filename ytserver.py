@@ -373,7 +373,94 @@ def getCNBData1(booking_id):
     returnData = booking + "|" + channel + "|" + tourname + "|" + city + "|" + tourtype + "|" + timeslot + "|" + paytype1 + "|" + paytype2 + "|" + guest 
     
     return returnData
+def getASTData1():
+    sqlobj = SQLoperations()
+        
+    inv_cities = sqlobj.fetchColumns("SELECT DISTINCT(city_id) from inventory") 
+    temp = inv_cities.split(":")[1].split(";")
+    ids = []
+    for idx,x in enumerate(temp):
+        if idx==len(temp)-1:
+            x = x[1:len(x)-2] 
+        else:
+            x = x[1:len(x)-1] 
+        ids.append(x)
+        
+    query = "SELECT * from city WHERE "    
+    for ID in ids:
+        query += "id = " + ID + " OR "
+    query = query[0:len(query)-4]                
+    cities = sqlobj.fetchColumns(query)
+    print cities
+    return cities  
+def getASTData2(city_id):
+    sqlobj = SQLoperations()
+        
+    inv_types = sqlobj.fetchColumns("SELECT DISTINCT(type_id) from inventory WHERE city_id = " + city_id) 
+    temp = inv_types.split(":")[1].split(";")
+    type_ids = []
+    for idx,x in enumerate(temp):
+        if idx==len(temp)-1:
+            x = x[1:len(x)-2] 
+        else:
+            x = x[1:len(x)-1] 
+        type_ids.append(x)
+      
+    name_ids = ""
+    for ID in type_ids:
+        name_ids += sqlobj.fetchColumns("SELECT DISTINCT(name_id) from inventory WHERE city_id = " + city_id + " AND type_id = " + ID) + "|"
+    name_ids = name_ids[:-1]
+    # print "|||--------> Testing :" + name_ids
+    names = ""
+    for idx,data in enumerate(name_ids.split("|")):
+        temp = data.split(":")[1].split(";")
+        ids = []
+        for idx,x in enumerate(temp):
+            if idx==len(temp)-1:
+                x = x[1:len(x)-2] 
+            else:
+                x = x[1:len(x)-1] 
+            ids.append(x)
+        query = "SELECT * from tourname WHERE "    
+        for ID in ids:
+            query += "id = " + ID + " OR "
+        query = query[0:len(query)-4]                
+        names += sqlobj.fetchColumns(query) + "|"
+    names = names[:-1]                            
+    return str(type_ids) + "|" + names  
+def saveStoryteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,email,phone,emergency_phone,address,education,blood_group,id_proof_number,id_proof_type,pcc,bank_details,eligibilityData):
+    sqlobj = SQLoperations()
+    count = re.findall('\d+',sqlobj.getCountOfRows("SELECT COUNT(*) from storyteller"))
+    query = "INSERT into storyteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,email,phone,emergency_phone,address,education,blood_group,id_proof_number,id_proof_type,pcc,bank_details) VALUES("
+    query += city_id + ",\"" + name.lower() + "\",\"" + dob + "\",\"" + recruited_from + "\",\"" + doj + "\",\"" + poj + "\"," + ptf + "," + ptp + "," + allowance + ",\"" + email + "\",\"" + phone + "\",\"" + emergency_phone    
+    query += "\",\"" + address + "\",\"" + education + "\",\"" + blood_group + "\",\"" + id_proof_number + "\",\"" + id_proof_type + "\",\"" + pcc + "\",\"" + bank_details + "\")" 
+    status1 = sqlobj.executeSQLquery(query)
 
+    temp =  eligibilityData.split("|")
+    IDS = []
+    for item in temp:
+        item = item[1:-1]
+        type_id = item.split("-")[0]
+        print item.split("-")
+        name_ids = item.split("-")[1].split("/")
+        print "\n\n\n|----------> ELIGIBILITY data : "+ city_id +","+ type_id +","+ str(name_ids)
+        for name_id in name_ids:
+            inv_ids = sqlobj.fetchColumns("SELECT id from inventory WHERE city_id = "+city_id+" AND type_id = "+type_id+" AND name_id = "+name_id)
+            inv_ids = inv_ids.split(":")[1]
+            inv_ids = inv_ids[:-1]
+            ids = inv_ids.split(";")
+            for id in ids:
+                id = int(id[1:-1])
+                IDS.append(id)
+        print "|----------> IDS : "+ str(IDS)
+                
+    query = "INSERT into st_eligibility(st_id,inventory_ids) VALUES("+count[0]+",\""+str(IDS)+"\")"
+    
+    status2 = sqlobj.executeSQLquery(query)
+    if status1==status2:
+        return status1
+    else:
+        return status1 + status2    
 def addtourname(name):
     sqlobj = SQLoperations()
     status = sqlobj.executeSQLquery("INSERT into tourname(name) VALUES(\""+ name +"\")")
@@ -476,7 +563,7 @@ def editpaytype(id,name):
     return status
 def deletetourname(id):
     sqlobj = SQLoperations()
-    no_of_tournames = re.findall('\d+',sqlobj.getCountOfRows("SELECT * from tourname"))
+    no_of_tournames = re.findall('\d+',sqlobj.getCountOfRows("SELECT COUNT(*) from tourname"))
     print "no of tournames ; "+ str(no_of_tournames[0])
     status = sqlobj.executeSQLquery("DELETE from tourname WHERE id = "+ str(id))
     print status
@@ -888,6 +975,21 @@ class S(BaseHTTPRequestHandler):
             params = param.split(",")
             data = cancelBooking(params[0],params[1])
             self.wfile.write(data)
+        elif func == 'getASTData1()':
+            data = getASTData1()
+            self.wfile.write(data)
+        elif func == 'getASTData2()':
+            param = post_data.split("?")[1]
+            print func+': '+param
+            params = param.split(",")
+            data = getASTData2(params[0])
+            self.wfile.write(data)
+        elif func == 'saveStoryteller()':        
+            param = post_data.split("?")[1]
+            print func+': '+param
+            params = param.split(",")
+            data = saveStoryteller(params[0],params[1],params[2],params[3],params[4],params[5],params[6],params[7],params[8],params[9],params[10],params[11],params[12],params[13],params[14],params[15],params[16],params[17],params[18],params[19]);
+            self.wfile.write(data)       
         
 def run(server_class=HTTPServer, handler_class=S, port=80):
     server_address = ('', port)
