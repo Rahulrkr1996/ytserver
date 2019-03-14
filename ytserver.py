@@ -751,25 +751,24 @@ class S(BaseHTTPRequestHandler):
         else:
             #To-Do : 
             #self.path = 'modifyBooking.html?ADD' / 'modifyBooking?EDIT' etc.
-
-            # query = urlparse(self.path).query
-            # query_components = dict(qc.split("=") for qc in query.split("&"))
-            # identifier = query_components["identifier"]
-            # post_params = {'identifier': identifier}
-            # post_args = urllib.urlencode(post_params)
-            # # try:
-            # print query_components
-            # print query
-            # print self.path[1:]
-            # print post_params
-            # print post_args
-            # file_to_open = urllib.urlopen(query.split("?")[0], post_args) 
-            # self.send_response(200)
-            # except:
-            #     print "Debugging Error!!"
-            #     print self.path
-            #     file_to_open = "File not found"
-            #     self.send_response(404)   
+            query = urlparse(self.path).query
+            query_components = dict(qc.split("=") for qc in query.split("&"))
+            identifier = query_components["identifier"]
+            post_params = {'identifier': identifier}
+            post_args = urllib.urlencode(post_params)
+            print query_components
+            print query
+            print self.path[1:]
+            print post_params
+            print post_args
+            try:
+                file_to_open = urllib.urlopen(query.split("?")[0], post_args) 
+                self.send_response(200)
+            except:
+                print "Debugging Error!!"
+                print self.path
+                file_to_open = "File not found"
+                self.send_response(404)   
         
         self.end_headers()
         self.wfile.write(bytes(file_to_open))
