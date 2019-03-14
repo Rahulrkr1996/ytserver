@@ -6,7 +6,7 @@ import sqlite3
 import re
 from datetime import datetime
 global conn
-
+import urllib
 def authenticateUser(id,password):
     # print 'id : ' + id + ', password : ' + password
     sqlobj = SQLoperations()
@@ -431,32 +431,42 @@ def getASTData2(city_id):
 def saveStoryteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,email,phone,emergency_phone,address,education,blood_group,id_proof_number,id_proof_type,pcc,bank_details,eligibilityData):
     sqlobj = SQLoperations()
     count = re.findall('\d+',sqlobj.getCountOfRows("SELECT COUNT(*) from storyteller"))
-    query = "INSERT into storyteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,email,phone,emergency_phone,address,education,blood_group,id_proof_number,id_proof_type,pcc,bank_details) VALUES("
+    st_id = int(count[0])+1
+    query = "INSERT into storyteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,email,phone,emergency_phone,address,education,blood_group,id_proof_number,id_proof_type,pcc,bank_details,eligibility) VALUES("
     query += city_id + ",\"" + name.lower() + "\",\"" + dob + "\",\"" + recruited_from + "\",\"" + doj + "\",\"" + poj + "\"," + ptf + "," + ptp + "," + allowance + ",\"" + email + "\",\"" + phone + "\",\"" + emergency_phone    
-    query += "\",\"" + address + "\",\"" + education + "\",\"" + blood_group + "\",\"" + id_proof_number + "\",\"" + id_proof_type + "\",\"" + pcc + "\",\"" + bank_details + "\")" 
+    query += "\",\"" + address + "\",\"" + education + "\",\"" + blood_group + "\",\"" + id_proof_number + "\",\"" + id_proof_type + "\",\"" + pcc + "\",\"" + bank_details + "\",\""+eligibilityData+"\")" 
     status1 = sqlobj.executeSQLquery(query)
-
-    temp =  eligibilityData.split("|")
-    IDS = []
-    for item in temp:
-        item = item[1:-1]
-        type_id = item.split("-")[0]
-        print item.split("-")
-        name_ids = item.split("-")[1].split("/")
-        print "\n\n\n|----------> ELIGIBILITY data : "+ city_id +","+ type_id +","+ str(name_ids)
-        for name_id in name_ids:
-            inv_ids = sqlobj.fetchColumns("SELECT id from inventory WHERE city_id = "+city_id+" AND type_id = "+type_id+" AND name_id = "+name_id)
-            inv_ids = inv_ids.split(":")[1]
-            inv_ids = inv_ids[:-1]
-            ids = inv_ids.split(";")
-            for id in ids:
-                id = int(id[1:-1])
-                IDS.append(id)
-        print "|----------> IDS : "+ str(IDS)
-                
-    query = "INSERT into st_eligibility(st_id,inventory_ids) VALUES("+count[0]+",\""+str(IDS)+"\")"
+    print status1
+    status2 = ""
+    if status1=="API executed successfully":
+        temp =  eligibilityData.split("|")
+        print "\n\n\n|----------> ELIGIBILITY data : "+ str(temp)
     
-    status2 = sqlobj.executeSQLquery(query)
+        for item in temp:
+            item = item[1:-1]
+            type_id = item.split("-")[0]
+            name_ids = item.split("-")[1].split("/")
+            for name_id in name_ids:
+                inv_ids = sqlobj.fetchColumns("SELECT id from inventory WHERE city_id = "+city_id+" AND type_id = "+type_id+" AND name_id = "+name_id)
+                inv_ids = inv_ids.split(":")[1]
+                inv_ids = inv_ids[:-1]
+                ids = inv_ids.split(";")
+                print "Inventory IDS : " + str(ids)
+                for x in ids:
+                    y = re.findall('\d+',x)
+                    ID = int(y[0])
+                    print "\n|----------> inventory_id : "+ str(ID)
+                    storyteller_ids = sqlobj.fetchColumns("SELECT st_ids from st_eligibility WHERE inventory_id = " + str(ID))
+                    print "Line:457 : " + storyteller_ids 
+                    if storyteller_ids!="[]":
+                        print "storyteller_ids = " + storyteller_ids
+                        storyteller_ids = storyteller_ids[1:-2]
+                        status2 = sqlobj.executeSQLquery("UPDATE st_eligibility set st_ids = \"" + storyteller_ids +"/"+str(st_id)+ "\" WHERE inventory_id = " + str(ID))
+                    else :
+                        status2 = sqlobj.executeSQLquery("INSERT into st_eligibility(inventory_id,st_ids) VALUES("+str(ID)+",\""+str(st_id)+"\")")
+
+                    print "|||-------------------------------> Testing : "+status2
+                    
     if status1==status2:
         return status1
     else:
@@ -628,6 +638,7 @@ def getInvetoryIdFromData(type_id,city_id,name_id,slot_id):
 
 class SQLoperations:
     def executeSQLquery(self, query):
+        print "Executing Query : " + query
         global conn
         try:
             conn.execute(query)
@@ -725,25 +736,43 @@ class S(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "X-Requested-With")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
+    def do_HEAD(self):
+        self._set_headers()
     def do_GET(self):
         print "path : "+self.path 
 
         if self.path == '/':
             self.path = '/index.html'
         
-        try:
-            print(self.path[1:])
+        elif "?" not in self.path:
+            print self.path[1:]
             file_to_open = open(self.path[1:]).read()
             self.send_response(200)
-        except:
-            print "Debugging Error!!"
-            print self.path
-            file_to_open = "File not found"
-            self.send_response(404)
+        else:
+            #To-Do : 
+            #self.path = 'modifyBooking.html?ADD' / 'modifyBooking?EDIT' etc.
+
+            # query = urlparse(self.path).query
+            # query_components = dict(qc.split("=") for qc in query.split("&"))
+            # identifier = query_components["identifier"]
+            # post_params = {'identifier': identifier}
+            # post_args = urllib.urlencode(post_params)
+            # # try:
+            # print query_components
+            # print query
+            # print self.path[1:]
+            # print post_params
+            # print post_args
+            # file_to_open = urllib.urlopen(query.split("?")[0], post_args) 
+            # self.send_response(200)
+            # except:
+            #     print "Debugging Error!!"
+            #     print self.path
+            #     file_to_open = "File not found"
+            #     self.send_response(404)   
+        
         self.end_headers()
         self.wfile.write(bytes(file_to_open))
-    def do_HEAD(self):
-        self._set_headers()
     def do_POST(self):
         content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
         post_data = self.rfile.read(content_length) # <--- Gets the data itself
@@ -988,6 +1017,7 @@ class S(BaseHTTPRequestHandler):
             param = post_data.split("?")[1]
             print func+': '+param
             params = param.split(",")
+            print params
             data = saveStoryteller(params[0],params[1],params[2],params[3],params[4],params[5],params[6],params[7],params[8],params[9],params[10],params[11],params[12],params[13],params[14],params[15],params[16],params[17],params[18],params[19]);
             self.wfile.write(data)       
         
