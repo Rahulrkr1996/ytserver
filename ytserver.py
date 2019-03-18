@@ -72,6 +72,7 @@ def getBookingsData(month,year,days):
     return status
 def getANBData1():
     sqlobj = SQLoperations()
+    no_of_bookings = sqlobj.getCountOfRows("SELECT COUNT(*) from booking")
     channels = sqlobj.fetchColumns("SELECT * from channel") 
     paytypes = sqlobj.fetchColumns("SELECT * from paytype") 
     inv_tourtypes = sqlobj.fetchColumns("SELECT DISTINCT(type_id) from inventory") 
@@ -109,7 +110,7 @@ def getANBData1():
     query = query[0:len(query)-4]                
     Cities = sqlobj.fetchColumns(query)
     print Cities
-    return channels + "|" + paytypes + "|" + Types + "|" + Cities  
+    return no_of_bookings + "|" + channels + "|" + paytypes + "|" + Types + "|" + Cities  
 def getANBData2(city_id,type_id):
     sqlobj = SQLoperations()
     inv_names = sqlobj.fetchColumns("SELECT DISTINCT(name_id) from inventory WHERE city_id = " + city_id + " AND type_id = " + type_id)
@@ -222,8 +223,9 @@ def getViewBookingData(identifier):
             channel = (sqlobj.fetchColumns("SELECT name from channel WHERE id = "+elements[1])).split(":")[1]
             channel = channel[0:-1]
             inv = sqlobj.fetchColumns("SELECT * from inventory WHERE id = "+elements[2])
+            print inv
             inv = inv.split(":")[1]
-            inv = inv[1:len(inv)-2]
+            inv = inv[1:-2]
             invElements = inv.split(",")
             tourname = (sqlobj.fetchColumns("SELECT name from tourname WHERE id = "+invElements[1])).split(":")[1]
             tourname = tourname[:len(tourname)-1]
@@ -273,7 +275,7 @@ def getViewBookingData(identifier):
                 city = city[:-1]
                 tourtype = (sqlobj.fetchColumns("SELECT name from tourtype WHERE id = "+invElements[3])).split(":")[1]
                 tourtype = tourtype[:-1]
-                timeslot = sqlobj.fetchColumns("SELECT name,start_time from timeslot WHERE id = "+invElements[4])
+                timeslot = sqlobj.fetchColumns("SELECT * from timeslot WHERE id = "+invElements[4])
                 timeslot = timeslot[12:-1]
                 paytype1 = (sqlobj.fetchColumns("SELECT name from paytype WHERE id = "+elements[6])).split(":")[1]
                 paytype2 = (sqlobj.fetchColumns("SELECT name from paytype WHERE id = "+elements[9])).split(":")[1]
@@ -457,20 +459,118 @@ def saveStoryteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,em
                     ID = int(y[0])
                     print "\n|----------> inventory_id : "+ str(ID)
                     storyteller_ids = sqlobj.fetchColumns("SELECT st_ids from st_eligibility WHERE inventory_id = " + str(ID))
-                    print "Line:457 : " + storyteller_ids 
                     if storyteller_ids!="[]":
-                        print "storyteller_ids = " + storyteller_ids
+                        storyteller_ids = storyteller_ids.split(":")[1]
                         storyteller_ids = storyteller_ids[1:-2]
                         status2 = sqlobj.executeSQLquery("UPDATE st_eligibility set st_ids = \"" + storyteller_ids +"/"+str(st_id)+ "\" WHERE inventory_id = " + str(ID))
                     else :
                         status2 = sqlobj.executeSQLquery("INSERT into st_eligibility(inventory_id,st_ids) VALUES("+str(ID)+",\""+str(st_id)+"\")")
 
-                    print "|||-------------------------------> Testing : "+status2
-                    
     if status1==status2:
         return status1
     else:
-        return status1 + status2    
+        return status1 + status2 
+def getABKData1(booking_id):
+    sqlobj = SQLoperations()
+    booking = sqlobj.fetchColumns("SELECT * from booking WHERE id = "+booking_id)
+    booking = booking.split(":")[1]
+    booking = booking[1:-2]
+    inventory_id = booking.split(",")[2]
+    Date = booking.split(",")[3];                 
+    city_slot = sqlobj.fetchColumns("SELECT city_id,slot_id from inventory WHERE id = " + inventory_id)
+    city_slot = city_slot.split(":")[1]
+    city_slot = city_slot[1:-2]
+    city_id = city_slot.split(",")[0]
+    slot_id = city_slot.split(",")[1]
+
+    eligible_sts = sqlobj.fetchColumns("SELECT st_ids from st_eligibility WHERE inventory_id = " + inventory_id)
+    eligible_sts = eligible_sts.split(":")[1]
+    eligible_sts = eligible_sts[1:-2]
+    print "Eligible storytellers : " + str(eligible_sts)
+    
+    availability = sqlobj.fetchColumns("SELECT st_ids from st_availability WHERE date = \"" + Date + "\" AND city_id = " + city_id + " AND slot_id = " + slot_id)
+    
+    eligible_avaliable_sts = []    
+    if availability!="[]":
+        availability = availability.split(":")[1]
+        availability = availability[1:-2]
+        avaliable_st_ids = availability.split("/")
+        print "Avaliable storytellers : " + str(avaliable_st_ids)
+        
+        st_ids = eligible_sts.split("/")
+        for x in st_ids:
+            for y in avaliable_st_ids:
+                if x==y:
+                    eligible_avaliable_sts.append(x)
+                    break
+        availability = "{\"st_availability\":["           
+        for x in eligible_avaliable_sts:
+            availability+=str(x)+"/"
+        availability = availability[:-1] 
+        availability = availability + "]}"
+    
+    print "storytellers : " + str(eligible_avaliable_sts)
+    peopleData1 = "[]"
+    capacityData2 = "[]"
+    if len(eligible_avaliable_sts):
+        Date = str(datetime.today()).split(" ")[0] 
+        query1 = "SELECT st_id,people,inventory_id from booking WHERE date > \"" + Date + "\" AND ("
+        query2 = "SELECT st_id,people,inventory_id from booking WHERE date = \"" + Date + "\" AND ("
+        for st_id in eligible_avaliable_sts:
+            if int(st_id)>0:
+                st = sqlobj.fetchColumns("SELECT id from storyteller WHERE id = " + st_id)
+                if st != "[]":
+                    query1 +="st_id = " + st_id + " OR "
+                    query2 +="st_id = " + st_id + " OR "
+        query1 = query1[:-4]
+        query1 += ")"
+        query2 = query2[:-4]
+        query2 += ")"
+        
+        peopleData1 = sqlobj.fetchColumns(query1) #For future bookings
+        peopleData2 = sqlobj.fetchColumns(query2) #For todays bookings
+        capacityData2 = ""
+        print peopleData1
+        print peopleData2
+            
+        if peopleData2 !="[]":
+            peopleData2 = peopleData2.split(":")[1]
+            peopleData2 = peopleData2[:-1]
+            for bk in peopleData2.split(";"):
+                bk = bk[1:-1]
+                inv_id = bk.split(",")[3]
+                slot_item = sqlobj.fetchColumns("SELECT slot_id from inventory WHERE id = " + inv_id)
+                slot_item = slot_item.split(":")[1]
+                slot_id = slot_item[1:-2]
+                start_time = sqlobj.fetchColumns("SELECT start_time from timeslot WHERE id = " + slot_id)
+                start_time = start_time[13:-2]
+                HOUR = int(start_time.split(":")[0])
+                MIN = int(start_time.split(":")[1])       
+                now = datetime.now()
+                bookingTime = now.replace(hour=HOUR,minute=MIN)
+                if bookingTime > now :
+                    capacityData2 += "[" + bk + "];"
+
+            capacityData2 = capacityData2[:-1]  
+        else : 
+            capacityData2 = "[]"   
+    query = "SELECT id,name from storyteller WHERE "
+    for st_id in eligible_sts.split("/"):
+        query += "id = " + st_id + " OR "
+    query = query[:-4]
+    eligible_sts = sqlobj.fetchColumns(query)
+    
+    return eligible_sts + "|" + availability + "|" + peopleData1 + "|" + capacityData2
+def allocateBooking(booking_id,st_id):
+    sqlobj = SQLoperations()
+    lifecycle = sqlobj.fetchColumns("SELECT lifecycle from booking WHERE id = " + booking_id)
+    lifecycle = lifecycle.split(":")[1]
+    lifecycle = lifecycle[1:-2]
+    lifecycle += "-A"
+    status = sqlobj.executeSQLquery("UPDATE booking SET lifecycle=\""+lifecycle+"\",status = \"A\",st_id = "+ st_id + " WHERE id = " + booking_id)
+    
+    return status
+
 def addtourname(name):
     sqlobj = SQLoperations()
     status = sqlobj.executeSQLquery("INSERT into tourname(name) VALUES(\""+ name +"\")")
@@ -536,7 +636,7 @@ def cancelBooking(id,cancel_reason):
     lifecycle = sqlobj.fetchColumns("SELECT lifecycle from booking WHERE id = " + id)
     lifecycle = lifecycle.split(":")[1]
     lifecycle = lifecycle[1:-2]
-    query = "UPDATE booking set cancel_reason = \""+cancel_reason+"\",status = \"CN\",lifecycle = \""+ lifecycle + "-CN" +"\" WHERE id = " + id
+    query = "UPDATE booking set st_id = 0,cancel_reason = \""+cancel_reason+"\",status = \"CN\",lifecycle = \""+ lifecycle + "-CN" +"\" WHERE id = " + id
     print "\n\n|||--------> Cancel Booking query : " + query
     data = sqlobj.executeSQLquery(query)
     return data
@@ -685,9 +785,12 @@ class SQLoperations:
         elif (tablename == "storyteller"):
             response += "{\"storyteller\":"
         
-        elif (tablename == "st_avaliability"):
-            response += "{\"st_avaliability\":"
+        elif (tablename == "st_availability"):
+            response += "{\"st_availability\":"
         
+        elif (tablename == "st_eligibility"):
+            response += "{\"st_eligibility\":"
+
         elif (tablename == "timeslot"):
             response += "{\"timeslot\":"
 
@@ -742,8 +845,7 @@ class S(BaseHTTPRequestHandler):
         print "path : "+self.path 
 
         if self.path == '/':
-            self.path = '/index.html'
-        
+            self.path = '/index.html'       
         elif "?" not in self.path:
             print self.path[1:]
             file_to_open = open(self.path[1:]).read()
@@ -1016,10 +1118,21 @@ class S(BaseHTTPRequestHandler):
             param = post_data.split("?")[1]
             print func+': '+param
             params = param.split(",")
-            print params
-            data = saveStoryteller(params[0],params[1],params[2],params[3],params[4],params[5],params[6],params[7],params[8],params[9],params[10],params[11],params[12],params[13],params[14],params[15],params[16],params[17],params[18],params[19]);
+            data = saveStoryteller(params[0],params[1],params[2],params[3],params[4],params[5],params[6],params[7],params[8],params[9],params[10],params[11],params[12],params[13],params[14],params[15],params[16],params[17],params[18],params[19])
             self.wfile.write(data)       
-        
+        elif func == 'getABKData1()':
+            param = post_data.split("?")[1]
+            print func+': '+param
+            params = param.split(",")
+            data = getABKData1(params[0]);
+            self.wfile.write(data)  
+        elif func == 'allocateBooking()':
+            param = post_data.split("?")[1]
+            print func+': '+param
+            params = param.split(",")
+            data = allocateBooking(params[0],params[1])
+            self.wfile.write(data)       
+
 def run(server_class=HTTPServer, handler_class=S, port=80):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
