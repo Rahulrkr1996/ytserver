@@ -6,7 +6,133 @@ import sqlite3
 import re
 from datetime import datetime
 global conn
-import urllib
+import smtplib 
+from smtplib import SMTPException
+sender = "rahul.kumarrkr95@gmail.com"
+sender_password = "Rahulrkr1996#"
+def getRescheduleBKMessage(bk_id,sender,receiver,identifier):
+    sqlobj = SQLoperations()
+    print sender + "\t" + receiver + "\n"
+    booking = sqlobj.fetchColumns("SELECT date,inventory_id FROM booking WHERE id = " + bk_id )
+    booking = booking.split(":")[1]
+    booking = booking[1:-2]
+    bookingData = booking.split(",")
+    date = bookingData[0]
+    inv_id = bookingData[1]
+    name_id = sqlobj.fetchColumns("SELECT name_id FROM inventory WHERE id = " + inv_id )
+    name_id = name_id.split(":")[1]
+    name_id = name_id[1:-2]
+    tourname = sqlobj.fetchColumns("SELECT name FROM tourname WHERE id = " + name_id )
+    tourname = tourname.split(":")[1]
+    tourname = tourname[1:-2]
+    text = "From: Yo Tours <"+sender+">\n" 
+    text += "To: To Person <"+ receiver +">\n"
+    text += "MIME-Version: 1.0\n"
+    text += "Content-type: text/html\n"
+    text += "Subject: Booking Rescheduled !\n\n"
+    if identifier=="customer":
+        text += "This is to inform you that your Booking " + tourname + " is Rescheduled to " + date + "!\n"
+    elif identifier=="storyteller":
+        text += "This is to inform you that the Booking " + tourname  + " is Rescheduled and you have been unallotted !\n"
+    return text
+def getCancelBKMessage(bk_id,sender,receiver,identifier):
+    sqlobj = SQLoperations()
+    print sender + "\t" + receiver + "\n"
+    booking = sqlobj.fetchColumns("SELECT date,inventory_id FROM booking WHERE id = " + bk_id )
+    booking = booking.split(":")[1]
+    booking = booking[1:-2]
+    bookingData = booking.split(",")
+    date = bookingData[0]
+    inv_id = bookingData[1]
+    name_id = sqlobj.fetchColumns("SELECT name_id FROM inventory WHERE id = " + inv_id )
+    name_id = name_id.split(":")[1]
+    name_id = name_id[1:-2]
+    tourname = sqlobj.fetchColumns("SELECT name FROM tourname WHERE id = " + name_id )
+    tourname = tourname.split(":")[1]
+    tourname = tourname[1:-2]
+    text = "From: Yo Tours <"+sender+">\n" 
+    text += "To: To Person <"+ receiver +">\n"
+    text += "MIME-Version: 1.0\n"
+    text += "Content-type: text/html\n"
+    
+    text += "Subject: Booking Cancelled !\n\n"
+    if identifier=="customer":
+        text += "This is to inform you that your Booking " + tourname + " on " + date + " is Cancelled !\n"
+    elif identifier=="storyteller":
+        text += "This is to inform you that the Booking " + tourname + " on " + date + " is cancelled and you have been unallotted !\n"
+    return text
+def getSTAllocationMessage(bk_id,sender,receiver,identifier):
+    sqlobj = SQLoperations()
+    print sender + "\t" + receiver + "\n"
+    booking = sqlobj.fetchColumns("SELECT date,inventory_id,st_id FROM booking WHERE id = " + bk_id )
+    booking = booking.split(":")[1]
+    booking = booking[1:-2]
+    bookingData = booking.split(",")
+    date = bookingData[0]
+    inv_id = bookingData[1]
+    st_id = bookingData[2]
+    name_id = sqlobj.fetchColumns("SELECT name_id FROM inventory WHERE id = " + inv_id )
+    name_id = name_id.split(":")[1]
+    name_id = name_id[1:-2]
+    tourname = sqlobj.fetchColumns("SELECT name FROM tourname WHERE id = " + name_id )
+    tourname = tourname.split(":")[1]
+    tourname = tourname[1:-2]
+    storyteller = sqlobj.fetchColumns("SELECT name FROM storyteller WHERE id = " + st_id)
+    storyteller = storyteller.split(":")[1]
+    storyteller = storyteller[1:-2]
+    
+    text = "From: Yo Tours <"+sender+">\n" 
+    text += "To: To Person <"+ receiver +">\n"
+    text += "MIME-Version: 1.0\n"
+    text += "Content-type: text/html\n"
+
+    if identifier=="customer":
+        text += "Subject: Storyteller Allotted !\n\n"
+        text += "This is to inform that the storyteller for your Booking, " + tourname + " on " + date + " is changed to  " + storyteller + " ...\n"
+    elif identifier=="st_old":
+        text += "Subject: Storyteller Changed !\n\n"
+        text += "This is to inform that you have been unallotted from the Booking for " + tourname + " on " + date + " !\n"
+    elif identifier=="st_new":
+        text += "Subject: New Booking Allotted !\n\n"
+        text += "This is to inform that you have been allotted to the Booking for " + tourname + " on " + date + " !\n"
+    
+    return text
+def getSaveBKMessage(bk_id,sender,receiver):
+    sqlobj = SQLoperations()
+    print sender + "\t" + receiver + "\n"
+    booking = sqlobj.fetchColumns("SELECT date,inventory_id FROM booking WHERE id = " + bk_id )
+    booking = booking.split(":")[1]
+    booking = booking[1:-2]
+    bookingData = booking.split(",")
+    date = bookingData[0]
+    inv_id = bookingData[1]
+    name_id = sqlobj.fetchColumns("SELECT name_id FROM inventory WHERE id = " + inv_id )
+    name_id = name_id.split(":")[1]
+    name_id = name_id[1:-2]
+    tourname = sqlobj.fetchColumns("SELECT name FROM tourname WHERE id = " + name_id )
+    tourname = tourname.split(":")[1]
+    tourname = tourname[1:-2]
+    text = "From: Yo Tours <"+sender+">\n" 
+    text += "To: To Person <"+ receiver +">\n"
+    text += "MIME-Version: 1.0\n"
+    text += "Content-type: text/html\n"
+    text += "Subject: Booking Saved !\n\n"
+    text += "This is to inform you that your Booking for " + tourname + " on " + date + " is saved and will soon be allotted to a storyteller !!\n"
+    return text
+
+def sendmail(sender,sender_password,receivers,message): 
+    s = smtplib.SMTP('smtp.gmail.com', 587) 
+    s.starttls() 
+    s.login(sender, sender_password) 
+      
+    try:
+        s.sendmail(sender, receivers, message)         
+        print "Successfully sent email"
+    except :
+       print "Error: unable to send email!"
+
+    s.quit() 
+
 def authenticateUser(id,password):
     # print 'id : ' + id + ', password : ' + password
     sqlobj = SQLoperations()
@@ -439,7 +565,7 @@ def saveStoryteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,em
     count = re.findall('\d+',sqlobj.getCountOfRows("SELECT COUNT(*) from storyteller"))
     st_id = int(count[0])+1
     query = "INSERT into storyteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,email,phone,emergency_phone,address,education,blood_group,id_proof_number,id_proof_type,pcc,bank_details,eligibility) VALUES("
-    query += city_id + ",\"" + name.lower() + "\",\"" + dob + "\",\"" + recruited_from + "\",\"" + doj + "\",\"" + poj + "\"," + ptf + "," + ptp + "," + allowance + ",\"" + email + "\",\"" + phone + "\",\"" + emergency_phone    
+    query += city_id + ",\"" + name.lower() + "\",\"" + dob + "\",\"" + recruited_from + "\",\"" + doj + "\",\"" + poj + "\"," + ptf + "," + ptp + "," + allowance + ",\"" + email.lower() + "\",\"" + phone + "\",\"" + emergency_phone    
     query += "\",\"" + address + "\",\"" + education + "\",\"" + blood_group + "\",\"" + id_proof_number + "\",\"" + id_proof_type + "\",\"" + pcc + "\",\"" + bank_details + "\",\""+eligibilityData+"\")" 
     status1 = sqlobj.executeSQLquery(query)
     print status1
@@ -567,9 +693,19 @@ def getABKData1(booking_id):
     return eligible_sts + "|" + availability + "|" + peopleData1 + "|" + capacityData2
 def allocateBooking(booking_id,st_id,reason="NA"):
     sqlobj = SQLoperations()
+    st_old_email = ""
+    if reason!="NA": #reallocatted
+        booking = sqlobj.fetchColumns("SELECT st_id FROM booking WHERE id = " + booking_id )
+        booking = booking.split(":")[1]
+        st_id = booking[1:-2]
+        st_old_email = sqlobj.fetchColumns("SELECT email FROM storyteller WHERE id = " + st_id)
+        st_old_email = st_old_email.split(":")[1]
+        st_old_email = st_old_email[1:-2]
+
     lifecycle = sqlobj.fetchColumns("SELECT lifecycle from booking WHERE id = " + booking_id)
     lifecycle = lifecycle.split(":")[1]
     lifecycle = lifecycle[1:-2]
+    reallocatted = True
     print "|||----------------> Testing " + reason
     if reason!="NA":
         lifecycle += "-RA"
@@ -577,7 +713,44 @@ def allocateBooking(booking_id,st_id,reason="NA"):
     else:
         lifecycle += "-A"
         status = sqlobj.executeSQLquery("UPDATE booking SET lifecycle=\""+lifecycle+"\",status = \"A\",st_id = "+ st_id + " WHERE id = " + booking_id)
-    
+        reallocatted = False
+
+    if status=="API executed successfully":
+        global sender
+        global sender_password
+        booking = sqlobj.fetchColumns("SELECT guest_id FROM booking WHERE id = " + booking_id )
+        booking = booking.split(":")[1]
+        guest_id = booking[1:-2]
+        guest_email = sqlobj.fetchColumns("SELECT email FROM guest WHERE id = " + guest_id)
+        guest_email = guest_email.split(":")[1];
+        guest_email = guest_email[1:-2]
+        
+        storyteller = sqlobj.fetchColumns("SELECT email FROM storyteller WHERE id = " + st_id)
+        storyteller = storyteller.split(":")[1]
+        storyteller = storyteller[1:-2]
+        
+        receivers = []
+        receivers.append(guest_email)
+        receivers.append(storyteller)
+        receivers.append(st_old_email)
+        
+        if reallocatted==True:
+            message = getSTAllocationMessage(str(booking_id),sender,receivers[0],"customer")     
+            sendmail(sender,sender_password,receivers,message)
+            print "Testing ||---------------------> " + str(booking_id) + " | " + guest_email + " | " + str(receivers) + " | " + sender + " \n" + message
+            message = getSTAllocationMessage(str(booking_id),sender,receivers[1],"st_new")     
+            sendmail(sender,sender_password,receivers,message)
+            print "Testing ||---------------------> " + str(booking_id) + " | " + guest_email + " | " + str(receivers) + " | " + sender + " \n" + message
+            message = getSTAllocationMessage(str(booking_id),sender,receivers[2],"st_old")     
+            sendmail(sender,sender_password,receivers,message)
+        else:    
+            message = getSTAllocationMessage(str(booking_id),sender,receivers[0],"customer")     
+            sendmail(sender,sender_password,receivers,message)
+            print "Testing ||---------------------> " + str(booking_id) + " | " + guest_email + " | " + str(receivers) + " | " + sender + " \n" + message
+            message = getSTAllocationMessage(str(booking_id),sender,receivers[1],"st_new")     
+            sendmail(sender,sender_password,receivers,message)
+            print "Testing ||---------------------> " + str(booking_id) + " | " + guest_email + " | " + str(receivers) + " | " + sender + " \n" + message
+        
     return status
 def getVSTData1():
     sqlobj = SQLoperations()
@@ -692,33 +865,104 @@ def addinventory(name_id,city_id,type_id,slot_id):
     return status    
 def addguest(name,email,phone):
     sqlobj = SQLoperations()
-    status = sqlobj.executeSQLquery("INSERT into guest(name,email,phone) VALUES(\"" + name + "\",\"" + email + "\",\""+phone+"\")")
+    status = sqlobj.executeSQLquery("INSERT into guest(name,email,phone) VALUES(\"" + name.lower() + "\",\"" + email.lower() + "\",\""+phone+"\")")
     print status
     return status
 def addbooking(channel_id,inventory_id,date,people,amount,paytype1_id,discount,amount2,paytype2_id,amount2_reason,guest_id,reference,st_id,status):
     sqlobj = SQLoperations()
     data = sqlobj.executeSQLquery("INSERT into booking(channel_id,inventory_id,date,people,amount,paytype1_id,discount,amount2,paytype2_id,amount2_reason,guest_id,reference,st_id,status,lifecycle) VALUES(" + channel_id + "," + inventory_id + ",\"" + date + "\"," + people + "," + amount + "," + paytype1_id + "," + discount + "," + amount2 + "," + paytype2_id + ",\"" + amount2_reason + "\","+guest_id+",\""+reference+"\","+st_id+",\""+status+"\",\"S\")")
     print data
+    if data=="API executed successfully":
+        global sender
+        global sender_password
+        receivers = []
+        guest_email = sqlobj.fetchColumns("SELECT email FROM guest WHERE id = " + guest_id)
+        print "Testing ||---------------------> " + guest_email
+        guest_email = guest_email.split(":")[1];
+        guest_email = guest_email[1:-2]
+        bk_id =   re.findall(r'\d+',sqlobj.getCountOfRows("SELECT COUNT(*) FROM booking"))[0]
+        receivers.append(guest_email)
+        message = getSaveBKMessage(str(bk_id),sender,guest_email)     
+        print "Testing ||---------------------> " + str(bk_id) + " | " + guest_email + " | " + str(receivers) + " | " + sender + " \n" + message
+        sendmail(sender,sender_password,receivers,message)
+
     return data
 def rescheduleBooking(id,inventory_id,date,people,discount,amount2,paytype2_id,amount2_reason,reschedule_reason):
     sqlobj = SQLoperations()
-    lifecycle = sqlobj.fetchColumns("SELECT lifecycle from booking WHERE id = " + id)
-    lifecycle = lifecycle.split(":")[1]
-    lifecycle = lifecycle[1:-2]
+    bk = sqlobj.fetchColumns("SELECT lifecycle,st_id from booking WHERE id = " + id)
+    bk = bk.split(":")[1]
+    bk = bk[1:-2]
+    lifecycle = bk.split(",")[0]
+    old_st_id = bk.split(",")[1]
     query = "UPDATE booking set st_id = 0,inventory_id = " + inventory_id + ",date = \"" + date + "\",people = " + people + ",discount = " + discount 
     query += ",amount2 = " + amount2 + ",amount2_reason = \"" + amount2_reason + "\",paytype2_id = " + paytype2_id 
     query += ",reschedule_reason = \""+reschedule_reason+"\",status = \"R\",lifecycle = \""+ lifecycle + "-R" +"\" WHERE id = " + id
     print "\n\n|||--------> Rescheduling Booking query : " + query
     data = sqlobj.executeSQLquery(query)
+
+    if data=="API executed successfully":
+        global sender
+        global sender_password
+        booking = sqlobj.fetchColumns("SELECT guest_id FROM booking WHERE id = " + id )
+        booking = booking.split(":")[1]
+        guest_id = booking[1:-2]
+        guest_email = sqlobj.fetchColumns("SELECT email FROM guest WHERE id = " + guest_id)
+        guest_email = guest_email.split(":")[1];
+        guest_email = guest_email[1:-2]
+        receivers = []
+        receivers.append(guest_email)
+        message = getRescheduleBKMessage(str(id),sender,receivers[0],"customer")     
+        print "Testing ||---------------------> " "\n" + message
+        sendmail(sender,sender_password,receivers,message)
+    
+        if int(old_st_id)>0:
+            storyteller = sqlobj.fetchColumns("SELECT email FROM storyteller WHERE id = " + old_st_id)
+            storyteller = storyteller.split(":")[1]
+            storyteller = storyteller[1:-2]
+            receivers.append(storyteller)
+            message = getRescheduleBKMessage(str(id),sender,receivers[1],"storyteller")     
+            print "Testing ||---------------------> " "\n" + message
+            sendmail(sender,sender_password,receivers,message)     
+        
+    
+
     return data
 def cancelBooking(id,cancel_reason):
     sqlobj = SQLoperations()
-    lifecycle = sqlobj.fetchColumns("SELECT lifecycle from booking WHERE id = " + id)
-    lifecycle = lifecycle.split(":")[1]
-    lifecycle = lifecycle[1:-2]
+    bk = sqlobj.fetchColumns("SELECT lifecycle,st_id from booking WHERE id = " + id)
+    bk = bk.split(":")[1]
+    bk = bk[1:-2]
+    lifecycle = bk.split(",")[0]
+    old_st_id = bk.split(",")[1]
     query = "UPDATE booking set st_id = 0,cancel_reason = \""+cancel_reason+"\",status = \"CN\",lifecycle = \""+ lifecycle + "-CN" +"\" WHERE id = " + id
     print "\n\n|||--------> Cancel Booking query : " + query
     data = sqlobj.executeSQLquery(query)
+
+    if data=="API executed successfully":
+        global sender
+        global sender_password
+        booking = sqlobj.fetchColumns("SELECT guest_id FROM booking WHERE id = " + id )
+        booking = booking.split(":")[1]
+        guest_id = booking[1:-2]
+        guest_email = sqlobj.fetchColumns("SELECT email FROM guest WHERE id = " + guest_id)
+        guest_email = guest_email.split(":")[1];
+        guest_email = guest_email[1:-2]
+        
+        receivers = []
+        receivers.append(guest_email)
+        message = getCancelBKMessage(str(id),sender,receivers[0],"customer")     
+        print "Testing ||---------------------> " "\n" + message
+        sendmail(sender,sender_password,receivers,message)
+    
+        if int(old_st_id)>0:
+            storyteller = sqlobj.fetchColumns("SELECT email FROM storyteller WHERE id = " + old_st_id)
+            storyteller = storyteller.split(":")[1]
+            storyteller = storyteller[1:-2]
+            receivers.append(storyteller)
+            message = getCancelBKMessage(str(id),sender,receivers[1],"storyteller")     
+            print "Testing ||---------------------> " "\n" + message
+            sendmail(sender,sender_password,receivers,message)     
+    
     return data
 
 def edittourname(id,name):
@@ -926,17 +1170,15 @@ class S(BaseHTTPRequestHandler):
 
         if self.path == '/':
             self.path = '/index.html'       
-        else:
-            print self.path[1:]
+        
+        try:
+            file_to_open = open(self.path[1:]).read()
             self.send_response(200)
-            try:
-                file_to_open = open(self.path[1:]).read()
-                self.send_response(200)
-            except:
-                print "Debugging Error!!"
-                print self.path
-                file_to_open = "File not found"
-                self.send_response(404)   
+        except:
+            print "Debugging Error!!"
+            print self.path
+            file_to_open = "File not found"
+            self.send_response(404)   
         
         self.end_headers()
         self.wfile.write(bytes(file_to_open))
