@@ -538,28 +538,15 @@ def getASTData2(city_id):
         else:
             x = x[1:len(x)-1] 
         type_ids.append(x)
-      
-    name_ids = ""
-    for ID in type_ids:
-        name_ids += sqlobj.fetchColumns("SELECT DISTINCT(name_id) from inventory WHERE city_id = " + city_id + " AND type_id = " + ID) + "|"
-    name_ids = name_ids[:-1]
-    names = ""
-    for idx,data in enumerate(name_ids.split("|")):
-        temp = data.split(":")[1].split(";")
-        ids = []
-        for idx,x in enumerate(temp):
-            if idx==len(temp)-1:
-                x = x[1:len(x)-2] 
-            else:
-                x = x[1:len(x)-1] 
-            ids.append(x)
-        query = "SELECT * from tourname WHERE "    
-        for ID in ids:
-            query += "id = " + ID + " OR "
-        query = query[0:len(query)-4]                
-        names += sqlobj.fetchColumns(query) + "|"
-    names = names[:-1]                            
-    return str(type_ids) + "|" + names  
+    
+    query = "SELECT * FROM tourtype WHERE "
+    for id in type_ids:
+        query += "id = " + id + " OR "
+    
+    query = query[:-4]    
+    types = sqlobj.fetchColumns(query)
+
+    return types 
 def saveStoryteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,email,phone,emergency_phone,address,education,blood_group,id_proof_number,id_proof_type,pcc,bank_details,eligibilityData):
     sqlobj = SQLoperations()
     count = re.findall('\d+',sqlobj.getCountOfRows("SELECT COUNT(*) from storyteller"))
@@ -571,30 +558,27 @@ def saveStoryteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,em
     print status1
     status2 = ""
     if status1=="API executed successfully":
+        eligibilityData = eligibilityData[1:-1]
         temp =  eligibilityData.split("|")
         print "\n\n\n|----------> ELIGIBILITY data : "+ str(temp)
     
-        for item in temp:
-            item = item[1:-1]
-            type_id = item.split("-")[0]
-            name_ids = item.split("-")[1].split("/")
-            for name_id in name_ids:
-                inv_ids = sqlobj.fetchColumns("SELECT id from inventory WHERE city_id = "+city_id+" AND type_id = "+type_id+" AND name_id = "+name_id)
-                inv_ids = inv_ids.split(":")[1]
-                inv_ids = inv_ids[:-1]
-                ids = inv_ids.split(";")
-                print "Inventory IDS : " + str(ids)
-                for x in ids:
-                    y = re.findall('\d+',x)
-                    ID = int(y[0])
-                    print "\n|----------> inventory_id : "+ str(ID)
-                    storyteller_ids = sqlobj.fetchColumns("SELECT st_ids from st_eligibility WHERE inventory_id = " + str(ID))
-                    if storyteller_ids!="[]":
-                        storyteller_ids = storyteller_ids.split(":")[1]
-                        storyteller_ids = storyteller_ids[1:-2]
-                        status2 = sqlobj.executeSQLquery("UPDATE st_eligibility set st_ids = \"" + storyteller_ids +"/"+str(st_id)+ "\" WHERE inventory_id = " + str(ID))
-                    else :
-                        status2 = sqlobj.executeSQLquery("INSERT into st_eligibility(inventory_id,st_ids) VALUES("+str(ID)+",\""+str(st_id)+"\")")
+        for type_id in temp:
+            inv_ids = sqlobj.fetchColumns("SELECT id from inventory WHERE city_id = " + city_id + " AND type_id = " + type_id )
+            inv_ids = inv_ids.split(":")[1]
+            inv_ids = inv_ids[:-1]
+            ids = inv_ids.split(";")
+            print "Inventory IDS : " + str(ids)
+            for x in ids:
+                y = re.findall('\d+',x)
+                ID = int(y[0])
+                print "\n|----------> inventory_id : "+ str(ID)
+                storyteller_ids = sqlobj.fetchColumns("SELECT st_ids from st_eligibility WHERE inventory_id = " + str(ID))
+                if storyteller_ids!="[]":
+                    storyteller_ids = storyteller_ids.split(":")[1]
+                    storyteller_ids = storyteller_ids[1:-2]
+                    status2 = sqlobj.executeSQLquery("UPDATE st_eligibility set st_ids = \"" + storyteller_ids +"/"+str(st_id)+ "\" WHERE inventory_id = " + str(ID))
+                else :
+                    status2 = sqlobj.executeSQLquery("INSERT into st_eligibility(inventory_id,st_ids) VALUES("+str(ID)+",\""+str(st_id)+"\")")
 
     if status1==status2:
         return status1
@@ -755,7 +739,6 @@ def allocateBooking(booking_id,st_id,reason="NA"):
 def getVSTData1():
     sqlobj = SQLoperations()
     sts = sqlobj.fetchColumns("SELECT * from storyteller")
-    # print sts + "\n\n"
     tempSTS = sts.split(":")[1]
     tempSTS = tempSTS[:-1]
     sts = "{\"storyteller\":"
@@ -777,52 +760,25 @@ def getVSTData1():
         
     sts = sts[:-1]
     sts+= "}"    
-    # print "\n\n" + sts
         
-
     eligibility = sqlobj.fetchColumns("SELECT eligibility from storyteller")
     eligibility = eligibility.split(":")[1]
     eligibility = eligibility[:-1]
+    print eligibility
     tourtypes = []
-    eligibilityData = "{\"eligibilityData\":"
     for item in eligibility.split(";"):
-        item = item[1:-1]
-        for data in item.split("|"):
-            data = data[1:-1]
-            type_id = data.split("-")[0]
+        item = item[2:-2]
+        for type_id in item.split("|"):            
             if type_id not in tourtypes:
                 tourtypes.append(type_id)
-            
-            name_ids = data.split("-")[1]
-            eligibilityData += "[" + type_id + "-"
-            
-            if "/" in name_ids:
-                for name_id in name_ids.split("/"):
-                    tourname = sqlobj.fetchColumns("SELECT name from tourname WHERE id = " + name_id)
-                    tourname = tourname.split(":")[1]
-                    tourname = tourname[1:-2]
-                    eligibilityData += tourname + "/"
-                eligibilityData = eligibilityData[:-1]    
-            else:
-                tourname = sqlobj.fetchColumns("SELECT name from tourname WHERE id = " + name_ids)
-                tourname = tourname.split(":")[1]
-                tourname = tourname[1:-2]
-                eligibilityData += tourname 
-            
-            eligibilityData += "]|"    
-            # print eligibilityData
-        eligibilityData = eligibilityData[:-1]
-        eligibilityData += ";"    
-    eligibilityData = eligibilityData[:-1]
-    eligibilityData += "}"
-    # print eligibilityData + "\n"
-
+        
+    print tourtypes
     query = "SELECT id,name from tourtype WHERE "
     for type_id in tourtypes:
         query += "id = " + type_id + " OR "
     query = query[:-4]    
     types = sqlobj.fetchColumns(query)    
-    return "<" + sts + "><"+types+"><" + eligibilityData[:-1] + "}" + ">"    
+    return "<" + sts + ">"+"<"+types+">"    
 
 def addtourname(name):
     sqlobj = SQLoperations()
