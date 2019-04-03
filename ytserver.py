@@ -297,7 +297,7 @@ def checkGuest(name,email,cc,phone):
         return guest_id
 def getViewBookingData(identifier):        
     sqlobj = SQLoperations()
-    if identifier=="past" or identifier=="future" or identifier=="unallocated":        
+    if identifier=="past" or identifier=="future" or identifier=="unallocated" or identifier=="cancelled":        
         if identifier=="past":
             booking1 = sqlobj.fetchColumns("SELECT * from booking WHERE date < \""+ str(datetime.today()).split(" ")[0] + "\"")
             booking2 = sqlobj.fetchColumns("SELECT * from booking WHERE date = \""+ str(datetime.today()).split(" ")[0] + "\"")
@@ -307,6 +307,9 @@ def getViewBookingData(identifier):
         elif identifier=="unallocated":
             booking1 = sqlobj.fetchColumns("SELECT * from booking WHERE st_id = 0 AND NOT(status == \"CN\") AND date > \""+ str(datetime.today()).split(" ")[0] + "\"")
             booking2 = sqlobj.fetchColumns("SELECT * from booking WHERE st_id = 0 AND NOT(status == \"CN\") AND date = \""+ str(datetime.today()).split(" ")[0] + "\"")
+        elif identifier=="cancelled":
+            booking1 = sqlobj.fetchColumns("SELECT * from booking WHERE status == \"CN\" AND date > \""+ str(datetime.today()).split(" ")[0] + "\"")
+            booking2 = sqlobj.fetchColumns("SELECT * from booking WHERE status == \"CN\" AND date = \""+ str(datetime.today()).split(" ")[0] + "\"")
         
         if booking1!="[]":
             temp = booking1.split(":")[1]
@@ -339,7 +342,9 @@ def getViewBookingData(identifier):
                 elif identifier=="future" or identifier=="unallocated":
                     if bookingTime>now:
                         booking1+=";["+booking+"]"
-        
+                elif identifier=="cancelled":
+                    booking1+=";["+booking+"]"
+                
         # print "|---> booking1 : "+booking1
         
         returnText = ""
@@ -547,13 +552,14 @@ def getASTData2(city_id):
     types = sqlobj.fetchColumns(query)
 
     return types 
-def saveStoryteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,email,phone,emergency_phone,address,education,blood_group,id_proof_number,id_proof_type,pcc,bank_details,eligibilityData):
+def saveStoryteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,email,phone,emergency_phone,address,education,blood_group,id_proof_number,id_proof_type,pcc,account_no,account_holder_name,ifsc_code,bank_name,branch,exp_level,eligibilityData):
     sqlobj = SQLoperations()
     count = re.findall('\d+',sqlobj.getCountOfRows("SELECT COUNT(*) from storyteller"))
     st_id = int(count[0])+1
-    query = "INSERT into storyteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,email,phone,emergency_phone,address,education,blood_group,id_proof_number,id_proof_type,pcc,bank_details,eligibility) VALUES("
-    query += city_id + ",\"" + name.lower() + "\",\"" + dob + "\",\"" + recruited_from + "\",\"" + doj + "\",\"" + poj + "\"," + ptf + "," + ptp + "," + allowance + ",\"" + email.lower() + "\",\"" + phone + "\",\"" + emergency_phone    
-    query += "\",\"" + address + "\",\"" + education + "\",\"" + blood_group + "\",\"" + id_proof_number + "\",\"" + id_proof_type + "\",\"" + pcc + "\",\"" + bank_details + "\",\""+eligibilityData+"\")" 
+    query = "INSERT into storyteller(city_id,name,dob,recruited_from,doj,poj,ptf,ptp,allowance,email,phone,emergency_phone,address,education,blood_group,id_proof_number,id_proof_type,pcc,ACCOUNT_NO,ACCOUNT_HOLDER_NAME,IFSC_CODE,BANK_NAME,BRANCH,exp_level,eligibility) VALUES("
+    query += city_id + ",\"" + name.lower() + "\",\"" + dob + "\",\"" + recruited_from + "\",\"" + doj + "\",\"" + poj + "\"," + ptf + "," + ptp + "," + allowance + ",\"" + email.lower() + "\",\"" + phone     
+    query += "\",\"" + emergency_phone + "\",\"" + address + "\",\"" + education + "\",\"" + blood_group + "\",\"" + id_proof_number + "\",\"" + id_proof_type + "\",\"" + pcc + "\",\"" + account_no  
+    query += "\",\"" + account_holder_name + "\",\"" + ifsc_code + "\",\""+ bank_name + "\",\""+ branch + "\",\"" + exp_level + "\",\""+eligibilityData+"\")" 
     status1 = sqlobj.executeSQLquery(query)
     print status1
     status2 = ""
@@ -1382,7 +1388,7 @@ class S(BaseHTTPRequestHandler):
             param = post_data.split("?")[1]
             print func+': '+param
             params = param.split(",")
-            data = saveStoryteller(params[0],params[1],params[2],params[3],params[4],params[5],params[6],params[7],params[8],params[9],params[10],params[11],params[12],params[13],params[14],params[15],params[16],params[17],params[18],params[19])
+            data = saveStoryteller(params[0],params[1],params[2],params[3],params[4],params[5],params[6],params[7],params[8],params[9],params[10],params[11],params[12],params[13],params[14],params[15],params[16],params[17],params[18],params[19],params[20],params[21],params[22],params[23],params[24])
             self.wfile.write(data)       
         elif func == 'getABKData1()':
             param = post_data.split("?")[1]
